@@ -20,7 +20,7 @@ interface entityConfig {
   detail: string;
   value: string;
   name: string;
-  device?: string;  // Device name for hierarchical URLs (sub-devices only)
+  device?: string; // Device name for hierarchical URLs (sub-devices only)
   entity_category?: number;
   when: string;
   icon?: string;
@@ -63,7 +63,7 @@ interface entityConfig {
 
 interface groupConfig {
   name: string;
-  sorting_weight: number;  
+  sorting_weight: number;
 }
 
 export const stateOn = "ON";
@@ -79,28 +79,32 @@ export function getBasePath() {
 // Old format: "domain-object_id" (deprecated)
 
 function isNewIdFormat(id: string): boolean {
-  return id.includes('/');
+  return id.includes("/");
 }
 
 function parseDomainFromId(id: string): string {
   if (isNewIdFormat(id)) {
-    return id.split('/')[0];
+    return id.split("/")[0];
   }
   // Old format: domain-object_id
-  return id.split('-')[0];
+  return id.split("-")[0];
 }
 
-function buildEntityActionUrl(basePath: string, entity: entityConfig, action: string): string {
+function buildEntityActionUrl(
+  basePath: string,
+  entity: entityConfig,
+  action: string,
+): string {
   if (isNewIdFormat(entity.unique_id)) {
     // New format: /{domain}/{device?}/{name}/{action}
     const entityName = encodeURIComponent(entity.name);
     const devicePart = entity.device
       ? `${encodeURIComponent(entity.device)}/`
-      : '';
+      : "";
     return `${basePath}/${entity.domain}/${devicePart}${entityName}/${action}`;
   }
   // Old format: /{domain}/{object_id}/{action}
-  const objectId = entity.unique_id.split('-').slice(1).join('-');
+  const objectId = entity.unique_id.split("-").slice(1).join("-");
   return `${basePath}/${entity.domain}/${objectId}/${action}`;
 }
 
@@ -109,12 +113,15 @@ function buildIdFetchUrl(basePath: string, id: string): string {
   let urlPath: string;
   if (isNewIdFormat(id)) {
     // New format: domain/name or domain/device/name
-    urlPath = id.split('/').map((s: string) => encodeURIComponent(s)).join('/');
+    urlPath = id
+      .split("/")
+      .map((s: string) => encodeURIComponent(s))
+      .join("/");
   } else {
     // Old format: domain-object_id -> domain/object_id
-    const parts = id.split('-');
+    const parts = id.split("-");
     const domain = parts[0];
-    const objectId = parts.slice(1).join('-');
+    const objectId = parts.slice(1).join("-");
     urlPath = `${domain}/${encodeURIComponent(objectId)}`;
   }
   return `${basePath}/${urlPath}?detail=all`;
@@ -131,6 +138,12 @@ const UNKNOWN_EVENT_THRESHOLD = 3;
 // Cap on detail requests per unrecognised entity. Without it a device that
 // never describes an entity is refetched on every state event, forever.
 const MAX_DETAIL_FETCH_ATTEMPTS = 3;
+
+// Usable brightness span of the COB strips, in raw 0-255 units.
+// Below BRIGHTNESS_FLOOR nothing visibly lights; above BRIGHTNESS_CEILING
+// the extra output is not useful. The slider shows 0-100 across this span.
+const BRIGHTNESS_FLOOR = 43;
+const BRIGHTNESS_CEILING = 230;
 
 interface unknownEntityState {
   events: number;
@@ -249,7 +262,7 @@ export class EntityTable extends LitElement implements RestAction {
     window.source?.removeEventListener("state", this._handleState);
     window.source?.removeEventListener(
       "sorting_group",
-      this._handleSortingGroup
+      this._handleSortingGroup,
     );
     super.disconnectedCallback();
   }
@@ -301,7 +314,7 @@ export class EntityTable extends LitElement implements RestAction {
     this._actionRenderer.actioner = this;
     this._actionRenderer.basePath = this._basePath;
     return this._actionRenderer.exec(
-      `render_${entity.domain}` as ActionRendererMethodKey
+      `render_${entity.domain}` as ActionRendererMethodKey,
     );
   }
 
@@ -336,7 +349,9 @@ export class EntityTable extends LitElement implements RestAction {
   // Buckets entities by sorting_group, ordered by `this.groups`. Groups that
   // were never announced still render, after the known ones, so an entity can
   // never be silently dropped.
-  private _groupEntities(entities: entityConfig[]): Map<string, entityConfig[]> {
+  private _groupEntities(
+    entities: entityConfig[],
+  ): Map<string, entityConfig[]> {
     const buckets = new Map<string, entityConfig[]>();
     for (const entity of entities) {
       const name = entity.sorting_group || EntityTable.ENTITY_UNDEFINED;
@@ -397,7 +412,9 @@ export class EntityTable extends LitElement implements RestAction {
                         : nothing}
                     </div>
                     <div>
-                      ${component.device ? `[${component.device}] ` : ""}${component.name}
+                      ${component.device
+                        ? `[${component.device}] `
+                        : ""}${component.name}
                     </div>
                     <div>
                       ${this.has_controls && component.has_action
@@ -410,10 +427,10 @@ export class EntityTable extends LitElement implements RestAction {
                         ></esp-entity-chart>`
                       : nothing}
                   </div>
-                `
+                `,
               )}
             </div>
-          `
+          `,
         )}
         ${this.renderShowAll()}
       </div>
@@ -429,19 +446,21 @@ export class EntityTable extends LitElement implements RestAction {
       if (!e?.ctrlKey) e.stopPropagation();
       e?.currentTarget?.classList.toggle(
         "expanded",
-        !e.ctrlKey ? undefined : true
+        !e.ctrlKey ? undefined : true,
       );
     }
   }
   _handleTabHeaderDblClick(e: Event) {
-    const doubleClickEvent = new CustomEvent('entity-tab-header-double-clicked', {
-      bubbles: true,
-      composed: true,
-    });
+    const doubleClickEvent = new CustomEvent(
+      "entity-tab-header-double-clicked",
+      {
+        bubbles: true,
+        composed: true,
+      },
+    );
     e.target?.dispatchEvent(doubleClickEvent);
   }
 }
-
 
 type ActionRendererNonCallable = "entity" | "actioner" | "basePath" | "exec";
 type ActionRendererMethodKey = keyof Omit<
@@ -461,11 +480,16 @@ class ActionRenderer {
     return this[method]();
   }
 
-  private _actionButton(entity: entityConfig, label: string, action: string, isCurrentState: boolean = false) {
+  private _actionButton(
+    entity: entityConfig,
+    label: string,
+    action: string,
+    isCurrentState: boolean = false,
+  ) {
     if (!entity) return;
     let a = action || label.toLowerCase();
     return html`<button
-      class="${isCurrentState ? 'abuttonIsState' : 'abutton'}"
+      class="${isCurrentState ? "abuttonIsState" : "abutton"}"
       ?disabled=${isCurrentState}
       @click=${() => this.actioner?.restAction(entity, a)}
     >
@@ -481,8 +505,8 @@ class ActionRenderer {
     value: string,
   ) {
     return html`
-      <input 
-        type="${type}" 
+      <input
+        type="${type}"
         name="${entity.unique_id}"
         id="${entity.unique_id}"
         .value="${value}"
@@ -490,7 +514,7 @@ class ActionRenderer {
           const val = (<HTMLTextAreaElement>e.target)?.value;
           this.actioner?.restAction(
             entity,
-            `${action}?${opt}=${val.replace('T', ' ')}`
+            `${action}?${opt}=${val.replace("T", " ")}`,
           );
         }}"
       />
@@ -513,24 +537,23 @@ class ActionRenderer {
     action: string,
     opt: string,
     options: string[] | number[],
-    val: string | number | undefined
+    val: string | number | undefined,
   ) {
     return html`<select
       @change="${(e: Event) => {
         const val = (<HTMLTextAreaElement>e.target)?.value;
         this.actioner?.restAction(
           entity,
-          `${action}?${opt}=${encodeURIComponent(val)}`
+          `${action}?${opt}=${encodeURIComponent(val)}`,
         );
       }}"
     >
       ${options.map(
-        (option) =>
-          html`
-            <option value="${option}" ?selected="${option == val}">
-              ${option}
-            </option>
-          `
+        (option) => html`
+          <option value="${option}" ?selected="${option == val}">
+            ${option}
+          </option>
+        `,
       )}
     </select>`;
   }
@@ -542,7 +565,7 @@ class ActionRenderer {
     value: string | number,
     min?: number,
     max?: number,
-    step = 1
+    step = 1,
   ) {
     if (entity.mode == 1) {
       return html`<div class="range">
@@ -563,20 +586,40 @@ class ActionRenderer {
         <label>${max ?? 100}</label>
       </div>`;
     }
-    return html`
-      <esp-range-slider
-        name="${entity.unique_id}"
-        step="${step}"
-        min="${ifDefined(min)}"
-        max="${ifDefined(max)}"
-        .value="${value}"
-        @state="${(e: CustomEvent) => {
-          this.actioner?.restAction(
-            entity,
-            `${action}?${opt}=${e.detail.state}`
-          );
-        }}"
-      ></esp-range-slider>`;
+    return html` <esp-range-slider
+      name="${entity.unique_id}"
+      step="${step}"
+      min="${ifDefined(min)}"
+      max="${ifDefined(max)}"
+      .value="${value}"
+      @state="${(e: CustomEvent) => {
+        this.actioner?.restAction(entity, `${action}?${opt}=${e.detail.state}`);
+      }}"
+    ></esp-range-slider>`;
+  }
+
+  // Brightness slider shown as 0-100 over the strip's usable raw span.
+  // Display: ui = (raw - floor) / (ceiling - floor) * 100
+  // Send:    raw = floor + ui / 100 * (ceiling - floor)
+  private _brightness(entity: entityConfig) {
+    const span = BRIGHTNESS_CEILING - BRIGHTNESS_FLOOR;
+    const raw = entity.brightness ?? BRIGHTNESS_FLOOR;
+    const shown = Math.min(
+      100,
+      Math.max(0, Math.round(((raw - BRIGHTNESS_FLOOR) / span) * 100)),
+    );
+    return html` <esp-range-slider
+      name="${entity.unique_id}"
+      step="1"
+      min="0"
+      max="100"
+      .value="${shown}"
+      @state="${(e: CustomEvent) => {
+        const pct = Math.min(100, Math.max(0, Number(e.detail.state)));
+        const value = Math.round(BRIGHTNESS_FLOOR + (pct / 100) * span);
+        this.actioner?.restAction(entity, `turn_on?brightness=${value}`);
+      }}"
+    ></esp-range-slider>`;
   }
 
   private _textinput(
@@ -586,7 +629,7 @@ class ActionRenderer {
     value: string | number,
     min: number | undefined,
     max: number | undefined,
-    pattern: string | undefined
+    pattern: string | undefined,
   ) {
     return html`
       <input
@@ -601,7 +644,7 @@ class ActionRenderer {
           const val = (<HTMLTextAreaElement>e.target)?.value;
           this.actioner?.restAction(
             entity,
-            `${action}?${opt}=${encodeURIComponent(val)}`
+            `${action}?${opt}=${encodeURIComponent(val)}`,
           );
         }}"
       />
@@ -640,8 +683,7 @@ class ActionRenderer {
       entity.target_temperature_low !== undefined &&
       entity.target_temperature_high !== undefined
     ) {
-      return html`
-        <div class="climate-row">
+      return html` <div class="climate-row">
           <label>Target Low:&nbsp;</label>
           ${this._range(
             entity,
@@ -650,7 +692,7 @@ class ActionRenderer {
             entity.target_temperature_low,
             entity.min_temp,
             entity.max_temp,
-            entity.step
+            entity.step,
           )}
         </div>
         <div class="climate-row">
@@ -662,24 +704,23 @@ class ActionRenderer {
             entity.target_temperature_high,
             entity.min_temp,
             entity.max_temp,
-            entity.step
+            entity.step,
           )}
         </div>`;
     }
     if (entity.target_temperature !== undefined) {
-      return html`
-        <div class="climate-row">
-          <label>Target:&nbsp;</label>
-          ${this._range(
-            entity,
-            "set",
-            "target_temperature",
-            entity.target_temperature,
-            entity.min_temp,
-            entity.max_temp,
-            entity.step
-          )}
-        </div>`;
+      return html` <div class="climate-row">
+        <label>Target:&nbsp;</label>
+        ${this._range(
+          entity,
+          "set",
+          "target_temperature",
+          entity.target_temperature,
+          entity.min_temp,
+          entity.max_temp,
+          entity.step,
+        )}
+      </div>`;
     }
     return nothing;
   }
@@ -695,11 +736,10 @@ class ActionRenderer {
   // is passed in rather than derived here.
   private _modeSelect(entity: entityConfig, value: string | number) {
     if (!entity.modes?.length) return nothing;
-    return html`
-      <div class="climate-row">
-        <label>Mode:&nbsp;</label>
-        ${this._select(entity, "set", "mode", entity.modes, value)}
-      </div>`;
+    return html` <div class="climate-row">
+      <label>Mode:&nbsp;</label>
+      ${this._select(entity, "set", "mode", entity.modes, value)}
+    </div>`;
   }
 
   // Shared by cover, valve and lock: a fixed set of buttons, each disabled
@@ -708,7 +748,7 @@ class ActionRenderer {
   // treated as already-active and every button stays pressable.
   private _stateButtons(
     entity: entityConfig,
-    buttons: [label: string, action: string, activeState?: string][]
+    buttons: [label: string, action: string, activeState?: string][],
   ) {
     const assumed = entity.assumed_state === true;
     return html`${buttons.map(([label, action, activeState]) =>
@@ -716,8 +756,8 @@ class ActionRenderer {
         entity,
         label,
         action,
-        !assumed && entity.state === activeState
-      )
+        !assumed && entity.state === activeState,
+      ),
     )}`;
   }
 
@@ -734,26 +774,14 @@ class ActionRenderer {
   render_date() {
     if (!this.entity) return;
     return html`
-      ${this._datetime(
-        this.entity,
-        "date",
-        "set",
-        "value",
-        this.entity.value,
-      )}
+      ${this._datetime(this.entity, "date", "set", "value", this.entity.value)}
     `;
   }
 
   render_time() {
     if (!this.entity) return;
     return html`
-      ${this._datetime(
-        this.entity,
-        "time",
-        "set",
-        "value",
-        this.entity.value,
-      )}
+      ${this._datetime(this.entity, "time", "set", "value", this.entity.value)}
     `;
   }
 
@@ -793,7 +821,7 @@ class ActionRenderer {
             this.entity.speed_level ? this.entity.speed_level : 0,
             0,
             this.entity.speed_count,
-            1
+            1,
           )
         : "",
     ];
@@ -802,19 +830,14 @@ class ActionRenderer {
   render_light() {
     if (!this.entity) return;
     return [
-      html`<div class="entity" style="
-      width: 100%;">
+      html`<div
+        class="entity"
+        style="
+      width: 100%;"
+      >
         ${this._switch(this.entity)}
         ${this.entity.brightness !== undefined
-          ? this._range(
-              this.entity,
-              "turn_on",
-              "brightness",
-              this.entity.brightness,
-              0,
-              255,
-              1,
-            )
+          ? this._brightness(this.entity)
           : ""}
         ${this.entity.color_temp !== undefined
           ? this._range(
@@ -836,7 +859,7 @@ class ActionRenderer {
               "turn_on",
               "effect",
               this.entity.effects || [],
-              this.entity.effect
+              this.entity.effect,
             )
           : ""}
       </div> `,
@@ -873,7 +896,7 @@ class ActionRenderer {
       "set",
       "option",
       this.entity.option || [],
-      this.entity.value
+      this.entity.value,
     );
   }
 
@@ -887,7 +910,7 @@ class ActionRenderer {
         this.entity.value,
         this.entity.min_value,
         this.entity.max_value,
-        this.entity.step
+        this.entity.step,
       )}
       ${this.entity.uom}
     `;
@@ -902,7 +925,7 @@ class ActionRenderer {
       this.entity.value,
       this.entity.min_length,
       this.entity.max_length,
-      this.entity.pattern
+      this.entity.pattern,
     );
   }
 
@@ -933,29 +956,27 @@ class ActionRenderer {
     // Away mode toggle (if supported)
     const away =
       entity.away !== undefined
-        ? html`
-            <div class="climate-row">
-              <label>Away:&nbsp;</label>
-              ${this._actionButton(
-                entity,
-                entity.away ? "ON" : "OFF",
-                `set?away=${!entity.away}`
-              )}
-            </div>`
+        ? html` <div class="climate-row">
+            <label>Away:&nbsp;</label>
+            ${this._actionButton(
+              entity,
+              entity.away ? "ON" : "OFF",
+              `set?away=${!entity.away}`,
+            )}
+          </div>`
         : nothing;
 
     // On/Off toggle (if supported)
     const on_off =
       entity.is_on !== undefined
-        ? html`
-            <div class="climate-row">
-              <label>Power:&nbsp;</label>
-              ${this._actionButton(
-                entity,
-                entity.is_on ? "ON" : "OFF",
-                `set?is_on=${!entity.is_on}`
-              )}
-            </div>`
+        ? html` <div class="climate-row">
+            <label>Power:&nbsp;</label>
+            ${this._actionButton(
+              entity,
+              entity.is_on ? "ON" : "OFF",
+              `set?is_on=${!entity.is_on}`,
+            )}
+          </div>`
         : nothing;
 
     return html`
@@ -979,62 +1000,78 @@ class ActionRenderer {
 
     // Helper to encode timings array to base64url
     const encodeTimings = (timingsStr: string): string => {
-      const timings = timingsStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      const timings = timingsStr
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n));
       const buffer = new ArrayBuffer(timings.length * 4);
       const view = new DataView(buffer);
       timings.forEach((val, i) => view.setInt32(i * 4, val, true)); // little-endian
       const bytes = new Uint8Array(buffer);
-      let binary = '';
-      bytes.forEach(b => binary += String.fromCharCode(b));
+      let binary = "";
+      bytes.forEach((b) => (binary += String.fromCharCode(b)));
       // Convert to base64url: replace + with -, / with _, remove padding =
-      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return btoa(binary)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
     };
 
     const handleTransmit = (e: Event) => {
       const button = e.currentTarget as HTMLElement;
       const container = button.parentElement?.parentElement; // button -> .infrared-row -> .infrared-wrap
       if (!container) {
-        console.error('Infrared: Could not find container');
+        console.error("Infrared: Could not find container");
         return;
       }
 
-      const carrierInput = container.querySelector('input[data-field="carrier"]') as HTMLInputElement;
-      const repeatInput = container.querySelector('input[data-field="repeat"]') as HTMLInputElement;
-      const timingsInput = container.querySelector('input[data-field="timings"]') as HTMLInputElement;
+      const carrierInput = container.querySelector(
+        'input[data-field="carrier"]',
+      ) as HTMLInputElement;
+      const repeatInput = container.querySelector(
+        'input[data-field="repeat"]',
+      ) as HTMLInputElement;
+      const timingsInput = container.querySelector(
+        'input[data-field="timings"]',
+      ) as HTMLInputElement;
 
       if (!carrierInput || !repeatInput || !timingsInput) {
-        console.error('Infrared: Could not find input elements', { carrierInput, repeatInput, timingsInput });
+        console.error("Infrared: Could not find input elements", {
+          carrierInput,
+          repeatInput,
+          timingsInput,
+        });
         return;
       }
 
-      const carrier = carrierInput.value || '38000';
-      const repeat = repeatInput.value || '1';
-      const timingsRaw = timingsInput.value || '';
+      const carrier = carrierInput.value || "38000";
+      const repeat = repeatInput.value || "1";
+      const timingsRaw = timingsInput.value || "";
 
       if (!timingsRaw.trim()) {
-        console.warn('Infrared: No timings provided');
+        console.warn("Infrared: No timings provided");
         return;
       }
 
       const timingsEncoded = encodeTimings(timingsRaw);
 
       // Build URL for transmit action (without query params - data goes in body)
-      const url = buildEntityActionUrl(basePath, entity, 'transmit');
+      const url = buildEntityActionUrl(basePath, entity, "transmit");
 
       // Send data in POST body to avoid URI Too Long error
       const body = new URLSearchParams();
-      body.append('carrier_frequency', carrier);
-      body.append('repeat_count', repeat);
-      body.append('data', timingsEncoded);
+      body.append("carrier_frequency", carrier);
+      body.append("repeat_count", repeat);
+      body.append("data", timingsEncoded);
 
       fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: body.toString()
-      }).catch(err => {
-        console.error('Infrared: Transmit error', err);
+        body: body.toString(),
+      }).catch((err) => {
+        console.error("Infrared: Transmit error", err);
       });
     };
 

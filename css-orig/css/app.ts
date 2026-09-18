@@ -2,14 +2,15 @@ import { css } from "lit";
 
 export default css`
   .flex-grid-half {
+    display: grid;
+    grid-template-columns: 700px 2fr;
   }
   .flex-grid-half.expanded_entity,
   .flex-grid-half.expanded_logs {
     grid-template-columns: 1fr;
   }
   .flex-grid-half .col {
-    margin-top: 52px;
-    padding: 0 260px;
+    margin: 8px;
   }
   .flex-grid-half .col:nth-child(2) {
     overflow: hidden;

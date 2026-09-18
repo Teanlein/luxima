@@ -46,7 +46,7 @@ function getRelativeTime(diff: number) {
     if (segment > 0) {
       const part = timeformat.format(
         segment * mark,
-        t.type as Intl.RelativeTimeFormatUnit
+        t.type as Intl.RelativeTimeFormatUnit,
       );
       diff -= segment * t.ms * mark;
       // remove "ago" from the first segment - if not the only one
@@ -160,24 +160,25 @@ export default class EspApp extends LitElement {
     }, 5000);
     document.addEventListener(
       "entity-tab-header-double-clicked",
-      this._handleEntityTabDblClick
+      this._handleEntityTabDblClick,
     );
     document.addEventListener(
       "log-tab-header-double-clicked",
-      this._handleLogTabDblClick
+      this._handleLogTabDblClick,
     );
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    if (this._connectionTimer !== undefined) clearInterval(this._connectionTimer);
+    if (this._connectionTimer !== undefined)
+      clearInterval(this._connectionTimer);
     document.removeEventListener(
       "entity-tab-header-double-clicked",
-      this._handleEntityTabDblClick
+      this._handleEntityTabDblClick,
     );
     document.removeEventListener(
       "log-tab-header-double-clicked",
-      this._handleLogTabDblClick
+      this._handleLogTabDblClick,
     );
   }
 
@@ -200,30 +201,11 @@ export default class EspApp extends LitElement {
   }
 
   renderOta() {
-    if (this.config.ota) {
-      let basePath = getBasePath();
-      return html`<div class="tab-header">OTA Update</div>
-        <form
-          method="POST"
-          action="${basePath}/update"
-          enctype="multipart/form-data"
-          class="tab-container"
-        >
-          <input class="btn" type="file" name="update" accept="application/octet-stream" />
-          <input class="btn" type="submit" value="Update" />
-        </form>`;
-    }
+    return nothing;
   }
 
   renderLog() {
-    return this.config.log
-      ? html`<section
-          id="col_logs"
-          class="col"
-        >
-          <esp-log rows="50" .scheme="${this.scheme}"></esp-log>
-        </section>`
-      : nothing;
+    return nothing;
   }
 
   renderTitle() {
@@ -264,10 +246,7 @@ export default class EspApp extends LitElement {
         ${this.renderTitle()}
       </header>
       <main class="flex-grid-half">
-        <section
-          id="col_entities"
-          class="col"          
-        >
+        <section id="col_entities" class="col">
           <esp-entity-table .scheme="${this.scheme}"></esp-entity-table>
           ${this.renderOta()}
         </section>
